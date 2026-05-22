@@ -28,8 +28,10 @@ const Resume = () => {
   const [resumeData, setResumeData] = useState([]);
 
   useEffect(() => {
-    const savedResume = JSON.parse(localStorage.getItem('ayperi_resume')) || [];
-    setResumeData(savedResume);
+    fetch('/api/resume')
+      .then(res => res.json())
+      .then(data => setResumeData(data))
+      .catch(err => console.error('Error fetching resume:', err));
   }, []);
 
   const activeCategoryIndex = catParam ? parseInt(catParam) : -1;

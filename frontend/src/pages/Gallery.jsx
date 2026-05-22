@@ -6,8 +6,10 @@ const Gallery = () => {
   const [gallery, setGallery] = useState([]);
 
   useEffect(() => {
-    const savedGallery = JSON.parse(localStorage.getItem('ayperi_gallery')) || [];
-    setGallery(savedGallery.filter(g => g.status !== 'Бүттү'));
+    fetch('/api/gallery')
+      .then(res => res.json())
+      .then(data => setGallery(data.filter(g => g.status !== 'Бүттү')))
+      .catch(err => console.error('Error fetching gallery:', err));
   }, []);
 
   return (

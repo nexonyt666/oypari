@@ -6,8 +6,10 @@ const Videos = () => {
   const [videos, setVideos] = useState([]);
 
   useEffect(() => {
-    const savedVideos = JSON.parse(localStorage.getItem('ayperi_videos')) || [];
-    setVideos(savedVideos.filter(v => v.status !== 'Бүттү'));
+    fetch('/api/videos')
+      .then(res => res.json())
+      .then(data => setVideos(data.filter(v => v.status !== 'Бүттү')))
+      .catch(err => console.error('Error fetching videos:', err));
   }, []);
 
   const getEmbedUrl = (url) => {

@@ -8,8 +8,12 @@ const Home = () => {
   const [recentProjects, setRecentProjects] = useState([]);
 
   useEffect(() => {
-    const savedProjects = JSON.parse(localStorage.getItem('ayperi_projects')) || [];
-    setRecentProjects(savedProjects.filter(p => p.status !== 'Бүттү').slice(0, 3));
+    fetch('/api/projects')
+      .then(res => res.json())
+      .then(data => {
+        setRecentProjects(data.filter(p => p.status !== 'Бүттү').slice(0, 3));
+      })
+      .catch(err => console.error('Error fetching projects:', err));
   }, []);
 
   const timelineData = [

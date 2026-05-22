@@ -26,14 +26,17 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('resume');
   
   // Data States
-  const [projects, setProjects] = useState(() => JSON.parse(localStorage.getItem('ayperi_projects')) || []);
-  const [gallery, setGallery] = useState(() => JSON.parse(localStorage.getItem('ayperi_gallery')) || []);
-  const [videos, setVideos] = useState(() => JSON.parse(localStorage.getItem('ayperi_videos')) || []);
-  const [resume, setResume] = useState(() => JSON.parse(localStorage.getItem('ayperi_resume')) || []);
+  const [projects, setProjects] = useState([]);
+  const [gallery, setGallery] = useState([]);
+  const [videos, setVideos] = useState([]);
+  const [resume, setResume] = useState([]);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Migration State
+  const [hasLocalData, setHasLocalData] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({ 
@@ -44,10 +47,85 @@ const Admin = () => {
     description: '' 
   });
 
-  useEffect(() => { localStorage.setItem('ayperi_projects', JSON.stringify(projects)); }, [projects]);
-  useEffect(() => { localStorage.setItem('ayperi_gallery', JSON.stringify(gallery)); }, [gallery]);
-  useEffect(() => { localStorage.setItem('ayperi_videos', JSON.stringify(videos)); }, [videos]);
-  useEffect(() => { localStorage.setItem('ayperi_resume', JSON.stringify(resume)); }, [resume]);
+  const fetchData = async () => {
+    try {
+      const resProjects = await fetch('/api/projects');
+      const dataProjects = await resProjects.json();
+      setProjects(dataProjects);
+
+      const resGallery = await fetch('/api/gallery');
+      const dataGallery = await resGallery.json();
+      setGallery(dataGallery);
+
+      const resVideos = await fetch('/api/videos');
+      const dataVideos = await resVideos.json();
+      setVideos(dataVideos);
+
+      const resResume = await fetch('/api/resume');
+      const dataResume = await resResume.json();
+      setResume(dataResume);
+    } catch (err) {
+      console.error("Error loading admin data:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
+
+      // Check if there is data in localStorage to migrate
+      const localProjects = JSON.parse(localStorage.getItem('ayperi_projects')) || [];
+      const localGallery = JSON.parse(localStorage.getItem('ayperi_gallery')) || [];
+      const localVideos = JSON.parse(localStorage.getItem('ayperi_videos')) || [];
+      const localResume = JSON.parse(localStorage.getItem('ayperi_resume')) || [];
+      
+      if (localProjects.length > 0 || localGallery.length > 0 || localVideos.length > 0 || localResume.length > 0) {
+        setHasLocalData(true);
+      }
+    }
+  }, [isAuthenticated]);
+
+  const handleMigrateData = async () => {
+    const localProjects = JSON.parse(localStorage.getItem('ayperi_projects')) || [];
+    const localGallery = JSON.parse(localStorage.getItem('ayperi_gallery')) || [];
+    const localVideos = JSON.parse(localStorage.getItem('ayperi_videos')) || [];
+    const localResume = JSON.parse(localStorage.getItem('ayperi_resume')) || [];
+
+    const totalItems = localProjects.length + localGallery.length + localVideos.length + localResume.length;
+    if (window.confirm(`Браузериңиздеги жергиликтүү маалыматтарды базага (SQL) өткөрөсүзбү?\n\nЖалпы саны: ${totalItems} даана`)) {
+      const password = sessionStorage.getItem('ayperi_admin_password') || '';
+      try {
+        const res = await fetch('/api/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': password
+          },
+          body: JSON.stringify({
+            projects: localProjects,
+            gallery: localGallery,
+            videos: localVideos,
+            resume: localResume
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Импорттоо учурунда ката кетти.');
+        }
+
+        alert('Бардык маалыматтар ийгиликтүү базага өткөрүлдү!');
+        localStorage.removeItem('ayperi_projects');
+        localStorage.removeItem('ayperi_gallery');
+        localStorage.removeItem('ayperi_videos');
+        localStorage.removeItem('ayperi_resume');
+        setHasLocalData(false);
+        fetchData();
+      } catch (err) {
+        alert("Ката: " + err.message);
+      }
+    }
+  };
 
   const tabs = [
     { id: 'resume', label: 'Резюме / Жетишкендиктер', icon: <FileText size={18} /> },
@@ -84,7 +162,7 @@ const Admin = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newItem = {
       ...formData,
@@ -92,45 +170,97 @@ const Admin = () => {
       date: editingItem ? editingItem.date : new Date().toISOString().split('T')[0]
     };
 
-    if (activeTab === 'projects') {
-      if (editingItem) setProjects(projects.map(p => p.id === editingItem.id ? newItem : p));
-      else setProjects([...projects, newItem]);
-    } else if (activeTab === 'gallery') {
-      if (editingItem) setGallery(gallery.map(g => g.id === editingItem.id ? newItem : g));
-      else setGallery([...gallery, newItem]);
-    } else if (activeTab === 'videos') {
-      if (editingItem) setVideos(videos.map(v => v.id === editingItem.id ? newItem : v));
-      else setVideos([...videos, newItem]);
-    } else if (activeTab === 'resume') {
-      if (editingItem) setResume(resume.map(r => r.id === editingItem.id ? newItem : r));
-      else setResume([...resume, newItem]);
+    const method = editingItem ? 'PUT' : 'POST';
+    const url = editingItem ? `/api/${activeTab}/${editingItem.id}` : `/api/${activeTab}`;
+    const password = sessionStorage.getItem('ayperi_admin_password') || '';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password
+        },
+        body: JSON.stringify(newItem)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Сактоо учурунда ката кетти.');
+      }
+
+      const savedItem = await res.json();
+
+      if (activeTab === 'projects') {
+        if (editingItem) setProjects(projects.map(p => p.id === editingItem.id ? savedItem : p));
+        else setProjects([savedItem, ...projects]);
+      } else if (activeTab === 'gallery') {
+        if (editingItem) setGallery(gallery.map(g => g.id === editingItem.id ? savedItem : g));
+        else setGallery([savedItem, ...gallery]);
+      } else if (activeTab === 'videos') {
+        if (editingItem) setVideos(videos.map(v => v.id === editingItem.id ? savedItem : v));
+        else setVideos([savedItem, ...videos]);
+      } else if (activeTab === 'resume') {
+        if (editingItem) setResume(resume.map(r => r.id === editingItem.id ? savedItem : r));
+        else setResume([savedItem, ...resume]);
+      }
+      
+      handleCloseModal();
+    } catch (err) {
+      alert("Ката: " + err.message);
     }
-    
-    handleCloseModal();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Чын эле өчүрөсүзбү?")) {
-      if (activeTab === 'projects') setProjects(projects.filter(p => p.id !== id));
-      else if (activeTab === 'gallery') setGallery(gallery.filter(g => g.id !== id));
-      else if (activeTab === 'videos') setVideos(videos.filter(v => v.id !== id));
-      else if (activeTab === 'resume') setResume(resume.filter(r => r.id !== id));
+      const password = sessionStorage.getItem('ayperi_admin_password') || '';
+      try {
+        const res = await fetch(`/api/${activeTab}/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'x-admin-password': password
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Өчүрүү учурунда ката кетти.');
+        }
+
+        if (activeTab === 'projects') setProjects(projects.filter(p => p.id !== id));
+        else if (activeTab === 'gallery') setGallery(gallery.filter(g => g.id !== id));
+        else if (activeTab === 'videos') setVideos(videos.filter(v => v.id !== id));
+        else if (activeTab === 'resume') setResume(resume.filter(r => r.id !== id));
+      } catch (err) {
+        alert("Ката: " + err.message);
+      }
     }
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (password === 'ayperi2026') {
-      sessionStorage.setItem('ayperi_admin_authenticated', 'true');
-      setIsAuthenticated(true);
-      setLoginError('');
-    } else {
-      setLoginError('Туура эмес сырсөз! Кайра аракет кылыңыз.');
+    try {
+      const res = await fetch('/api/auth-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('ayperi_admin_authenticated', 'true');
+        sessionStorage.setItem('ayperi_admin_password', password);
+        setIsAuthenticated(true);
+        setLoginError('');
+      } else {
+        setLoginError('Туура эмес сырсөз! Кайра аракет кылыңыз.');
+      }
+    } catch (err) {
+      setLoginError('Сервер менен байланышуу мүмкүн болгон жок.');
     }
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem('ayperi_admin_authenticated');
+    sessionStorage.removeItem('ayperi_admin_password');
     setIsAuthenticated(false);
     setPassword('');
   };
@@ -230,13 +360,24 @@ const Admin = () => {
           <h1 className="text-gradient" style={{ fontSize: '3rem', margin: 0 }}>Админ Панель</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Сайттын маалыматтарын толук башкаруу системасы.</p>
         </div>
-        <button 
-          onClick={handleLogout} 
-          className="btn btn-glass btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', borderColor: '#EF4444', color: '#EF4444' }}
-        >
-          <LogOut size={16} /> Чыгуу
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {hasLocalData && (
+            <button 
+              onClick={handleMigrateData} 
+              className="btn btn-primary btn-sm pulse-hover"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10B981, #059669)', border: 'none' }}
+            >
+              Базага импорттоо (LocalStorage)
+            </button>
+          )}
+          <button 
+            onClick={handleLogout} 
+            className="btn btn-glass btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', borderColor: '#EF4444', color: '#EF4444' }}
+          >
+            <LogOut size={16} /> Чыгуу
+          </button>
+        </div>
       </div>
 
       <div className="admin-layout">

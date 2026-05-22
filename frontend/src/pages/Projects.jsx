@@ -7,8 +7,10 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState(null);
 
   useEffect(() => {
-    const savedProjects = JSON.parse(localStorage.getItem('ayperi_projects')) || [];
-    setProjects(savedProjects);
+    fetch('/api/projects')
+      .then(res => res.json())
+      .then(data => setProjects(data))
+      .catch(err => console.error('Error fetching projects:', err));
   }, []);
 
   return (
