@@ -12,9 +12,7 @@ const Navbar = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -23,9 +21,10 @@ const Navbar = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
+  // Close mobile nav on route change
+  useEffect(() => { setIsOpen(false); }, [location.pathname]);
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   const navLinks = [
     { name: 'Башкы бет', path: '/' },
@@ -51,53 +50,48 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled glass-nav' : ''}`}>
+    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="container nav-container">
+        {/* Logo */}
         <div className="logo-wrapper" style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-          <Link to="/" className="logo">
-            AYPERI
-          </Link>
-          <Link to="/admin" className="text-gradient" style={{ 
-            fontFamily: 'var(--font-primary)',
-            fontSize: '1.5rem',
-            fontWeight: '800',
-            letterSpacing: '-0.5px',
-            textDecoration: 'none',
-            marginLeft: '1px',
-            cursor: 'default',
-            userSelect: 'none'
-          }}>
-            .
-          </Link>
+          <Link to="/" className="logo">AYPERI</Link>
+          <Link
+            to="/admin"
+            className="logo-dot"
+            style={{ fontFamily: 'var(--font-primary)', fontSize: '1.6rem', fontWeight: '800', marginLeft: '1px' }}
+          >.</Link>
         </div>
 
         {/* Desktop Nav */}
         <ul className="nav-links desktop-nav">
           {navLinks.slice(0, 3).map((link) => (
             <li key={link.path}>
-              <Link to={link.path} className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}>
+              <Link
+                to={link.path}
+                className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}
+              >
                 {link.name}
               </Link>
             </li>
           ))}
 
           {/* Resume Dropdown */}
-          <li 
+          <li
             className="dropdown"
             onMouseEnter={() => setResumeDropdown(true)}
             onMouseLeave={() => setResumeDropdown(false)}
           >
             <span className={`nav-link ${location.pathname === '/resume' ? 'active' : ''}`}>
-              Резюме <ChevronDown size={16} />
+              Резюме <ChevronDown size={14} />
             </span>
             <AnimatePresence>
               {resumeDropdown && (
-                <motion.ul 
-                  className="dropdown-menu glass-panel"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.2 }}
+                <motion.ul
+                  className="dropdown-menu"
+                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                  transition={{ duration: 0.18 }}
                 >
                   {resumeCategories.map((cat, idx) => (
                     <li key={idx}>
@@ -111,20 +105,27 @@ const Navbar = () => {
 
           {navLinks.slice(3).map((link) => (
             <li key={link.path}>
-              <Link to={link.path} className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}>
+              <Link
+                to={link.path}
+                className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}
+              >
                 {link.name}
               </Link>
             </li>
           ))}
         </ul>
 
+        {/* Actions */}
         <div className="nav-actions">
-          <button onClick={toggleTheme} className="theme-toggle">
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          <button onClick={toggleTheme} className="theme-toggle" aria-label="Toggle theme">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          
-          <button className="mobile-toggle" onClick={() => setIsOpen(!isOpen)}>
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          <button
+            className="mobile-toggle"
+            onClick={() => setIsOpen(o => !o)}
+            aria-label="Toggle menu"
+          >
+            {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>
@@ -132,26 +133,28 @@ const Navbar = () => {
       {/* Mobile Nav */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
-            className="mobile-nav glass-panel"
+          <motion.div
+            className="mobile-nav"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
           >
             <ul className="mobile-nav-links">
               {navLinks.map((link) => (
                 <li key={link.path}>
-                  <Link 
-                    to={link.path} 
+                  <Link
+                    to={link.path}
                     className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}
-                    onClick={() => setIsOpen(false)}
                   >
                     {link.name}
                   </Link>
                 </li>
               ))}
               <li>
-                <Link to="/resume" className="nav-link" onClick={() => setIsOpen(false)}>Резюме</Link>
+                <Link to="/resume" className={`nav-link ${location.pathname === '/resume' ? 'active' : ''}`}>
+                  Резюме
+                </Link>
               </li>
             </ul>
           </motion.div>

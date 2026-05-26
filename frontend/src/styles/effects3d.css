@@ -1,0 +1,298 @@
+/* ================================================================
+   3D EFFECTS — AYPERI PORTFOLIO
+   ================================================================ */
+
+/* ── Floating Shapes Container ────────────────────────────────── */
+.floating-shapes-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── 3D CUBE ──────────────────────────────────────────────────── */
+.shape-3d-cube {
+  position: absolute;
+  width: var(--size, 40px);
+  height: var(--size, 40px);
+  transform-style: preserve-3d;
+  animation: rotateCube var(--duration, 20s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.shape-3d-cube .face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: var(--color, rgba(99,102,241,0.15));
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  backdrop-filter: blur(2px);
+}
+
+.shape-3d-cube .front  { transform: translateZ(calc(var(--size, 40px) / 2)); }
+.shape-3d-cube .back   { transform: translateZ(calc(var(--size, 40px) / -2)) rotateY(180deg); }
+.shape-3d-cube .left   { transform: translateX(calc(var(--size, 40px) / -2)) rotateY(-90deg); }
+.shape-3d-cube .right  { transform: translateX(calc(var(--size, 40px) / 2)) rotateY(90deg); }
+.shape-3d-cube .top    { transform: translateY(calc(var(--size, 40px) / -2)) rotateX(90deg); }
+.shape-3d-cube .bottom { transform: translateY(calc(var(--size, 40px) / 2)) rotateX(-90deg); }
+
+@keyframes rotateCube {
+  0%   { transform: perspective(500px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0px); }
+  25%  { transform: perspective(500px) rotateX(90deg) rotateY(45deg) rotateZ(20deg) translateY(-15px); }
+  50%  { transform: perspective(500px) rotateX(180deg) rotateY(90deg) rotateZ(0deg) translateY(0px); }
+  75%  { transform: perspective(500px) rotateX(270deg) rotateY(135deg) rotateZ(-20deg) translateY(15px); }
+  100% { transform: perspective(500px) rotateX(360deg) rotateY(180deg) rotateZ(0deg) translateY(0px); }
+}
+
+/* ── 3D RING ──────────────────────────────────────────────────── */
+.shape-3d-ring {
+  position: absolute;
+  width: var(--size, 80px);
+  height: var(--size, 80px);
+  border-radius: 50%;
+  border: 2px solid var(--color, rgba(168,85,247,0.15));
+  box-shadow:
+    0 0 15px var(--color, rgba(168,85,247,0.1)),
+    inset 0 0 15px var(--color, rgba(168,85,247,0.05));
+  animation: rotateRing var(--duration, 15s) ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+@keyframes rotateRing {
+  0%   { transform: perspective(400px) rotateX(60deg) rotateZ(0deg) translateY(0px); }
+  33%  { transform: perspective(400px) rotateX(60deg) rotateZ(120deg) translateY(-10px); }
+  66%  { transform: perspective(400px) rotateX(60deg) rotateZ(240deg) translateY(5px); }
+  100% { transform: perspective(400px) rotateX(60deg) rotateZ(360deg) translateY(0px); }
+}
+
+/* ── 3D DIAMOND ───────────────────────────────────────────────── */
+.shape-3d-diamond {
+  position: absolute;
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  background: linear-gradient(135deg, var(--color, rgba(99,102,241,0.3)), transparent);
+  border: 1px solid var(--color, rgba(99,102,241,0.25));
+  transform-origin: center;
+  animation: floatDiamond var(--duration, 14s) ease-in-out infinite;
+  box-shadow: 0 0 20px var(--color, rgba(99,102,241,0.15));
+}
+
+@keyframes floatDiamond {
+  0%   { transform: perspective(300px) rotateX(0deg) rotateY(0deg) rotateZ(45deg) translateY(0px); }
+  25%  { transform: perspective(300px) rotateX(30deg) rotateY(60deg) rotateZ(45deg) translateY(-12px); }
+  50%  { transform: perspective(300px) rotateX(0deg) rotateY(120deg) rotateZ(45deg) translateY(0px); }
+  75%  { transform: perspective(300px) rotateX(-30deg) rotateY(180deg) rotateZ(45deg) translateY(12px); }
+  100% { transform: perspective(300px) rotateX(0deg) rotateY(360deg) rotateZ(45deg) translateY(0px); }
+}
+
+/* ================================================================
+   3D CARD TILT — applies to any element with .card-3d class
+   ================================================================ */
+.card-3d {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.card-3d-inner {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Shine overlay for 3D cards */
+.card-3d-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.04) 40%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 60%,
+    rgba(255,255,255,0) 100%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 1;
+}
+
+.card-3d:hover .card-3d-shine {
+  opacity: 1;
+}
+
+/* ================================================================
+   3D HERO PHOTO FRAME
+   ================================================================ */
+.photo-3d-wrapper {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+}
+
+/* Depth layers that float in front/behind */
+.photo-depth-layer {
+  position: absolute;
+  border-radius: 28px;
+  transition: transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.photo-depth-layer-1 {
+  inset: -8px;
+  border: 1px solid rgba(99,102,241,0.2);
+  background: transparent;
+  transform: translateZ(-20px);
+  animation: depthPulse1 4s ease-in-out infinite;
+}
+
+.photo-depth-layer-2 {
+  inset: -16px;
+  border: 1px solid rgba(168,85,247,0.12);
+  background: transparent;
+  transform: translateZ(-40px);
+  animation: depthPulse2 6s ease-in-out infinite;
+}
+
+@keyframes depthPulse1 {
+  0%, 100% { opacity: 0.5; transform: translateZ(-20px) scale(1); }
+  50%       { opacity: 1;   transform: translateZ(-20px) scale(1.01); }
+}
+
+@keyframes depthPulse2 {
+  0%, 100% { opacity: 0.3; transform: translateZ(-40px) scale(1); }
+  50%       { opacity: 0.7; transform: translateZ(-40px) scale(1.02); }
+}
+
+/* ================================================================
+   3D STAT CARDS
+   ================================================================ */
+.stat-3d-card {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s;
+  position: relative;
+  cursor: default;
+}
+
+.stat-3d-card:hover {
+  transform: perspective(600px) rotateX(-8deg) translateY(-6px) scale(1.03);
+  box-shadow: 0 25px 50px rgba(99,102,241,0.25);
+}
+
+/* ================================================================
+   3D SKILL BAR GLOW
+   ================================================================ */
+.skill-bar {
+  position: relative;
+  overflow: visible !important;
+}
+
+.skill-bar::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #EC4899;
+  box-shadow: 0 0 10px #EC4899, 0 0 20px rgba(236,72,153,0.5);
+  animation: skillPulse 2s ease-in-out infinite;
+}
+
+@keyframes skillPulse {
+  0%, 100% { box-shadow: 0 0 8px #EC4899, 0 0 16px rgba(236,72,153,0.4); transform: translateY(-50%) scale(1); }
+  50%       { box-shadow: 0 0 16px #EC4899, 0 0 32px rgba(236,72,153,0.6); transform: translateY(-50%) scale(1.3); }
+}
+
+/* ================================================================
+   3D TIMELINE DOTS (Pulsing + Glowing)
+   ================================================================ */
+.timeline-dot-center {
+  animation: dotGlow 2s ease-in-out infinite !important;
+}
+
+@keyframes dotGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(99,102,241,0.6), 0 0 16px rgba(99,102,241,0.3);
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(99,102,241,0.9), 0 0 32px rgba(99,102,241,0.4), 0 0 48px rgba(168,85,247,0.2);
+    transform: translateX(-50%) scale(1.2);
+  }
+}
+
+/* ================================================================
+   3D HERO NAME — Text depth effect
+   ================================================================ */
+.hero-title-3d {
+  text-shadow:
+    1px 1px 0px rgba(168,85,247,0.3),
+    2px 2px 0px rgba(168,85,247,0.2),
+    3px 3px 0px rgba(168,85,247,0.15),
+    4px 4px 8px rgba(0,0,0,0.3);
+}
+
+/* ================================================================
+   GLASS BADGE 3D
+   ================================================================ */
+.glass-badge {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-badge:hover {
+  transform: perspective(300px) rotateY(-10deg) translateZ(10px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5), 6px 0 20px rgba(99,102,241,0.2);
+}
+
+/* ================================================================
+   3D NAV LOGO — Subtle 3D on hover
+   ================================================================ */
+.logo {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.logo:hover {
+  transform: perspective(200px) rotateY(-8deg) rotateX(5deg);
+}
+
+/* ================================================================
+   SECTION REVEAL — 3D roll-in effect
+   ================================================================ */
+@keyframes rollIn3D {
+  0%   { opacity: 0; transform: perspective(800px) rotateX(-30deg) translateY(40px); }
+  100% { opacity: 1; transform: perspective(800px) rotateX(0deg) translateY(0px); }
+}
+
+.section-3d-reveal {
+  animation: rollIn3D 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* ================================================================
+   RESPONSIVE — reduce 3D on mobile
+   ================================================================ */
+@media (max-width: 768px) {
+  .floating-shapes-container { opacity: 0.4; }
+  .shape-3d-cube { display: none; }
+  .photo-depth-layer { display: none; }
+}
+
+/* ================================================================
+   PERFORMANCE — GPU hints
+   ================================================================ */
+.shape-3d-cube,
+.shape-3d-ring,
+.shape-3d-diamond,
+.card-3d,
+.photo-3d-wrapper,
+.stat-3d-card {
+  will-change: transform;
+  backface-visibility: hidden;
+}

@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const dbPath = path.join(__dirname, 'database.sqlite');
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'database.sqlite');
+
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -48,8 +49,28 @@ function initializeTables() {
       status TEXT NOT NULL,
       url TEXT,
       description TEXT,
-      date TEXT
+      date TEXT,
+      category TEXT DEFAULT 'Билим берүү',
+      tags TEXT DEFAULT ''
     )`);
+
+    // Dynamic schema update for projects (adds category and tags if missing)
+    db.all("PRAGMA table_info(projects)", (err, columns) => {
+      if (!err && columns) {
+        const hasCategory = columns.some(c => c.name === 'category');
+        const hasTags = columns.some(c => c.name === 'tags');
+        if (!hasCategory) {
+          db.run("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'Билим берүү'", (alterErr) => {
+            if (alterErr) console.error("Error altering projects (category):", alterErr.message);
+          });
+        }
+        if (!hasTags) {
+          db.run("ALTER TABLE projects ADD COLUMN tags TEXT DEFAULT ''", (alterErr) => {
+            if (alterErr) console.error("Error altering projects (tags):", alterErr.message);
+          });
+        }
+      }
+    });
 
     // Gallery table
     db.run(`CREATE TABLE IF NOT EXISTS gallery (
@@ -80,14 +101,37 @@ function initializeTables() {
       date TEXT
     )`);
 
-    // Seed if empty
+    // Messages table
+    db.run(`CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      date TEXT
+    )`);
+
+    // Settings table (key-value metadata configuration)
+    db.run(`CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )`);
+
+    // Seed default settings and data if empty
     try {
+      const settingsCount = await get("SELECT COUNT(*) as count FROM settings");
+      if (settingsCount.count === 0) {
+        await run("INSERT INTO settings (key, value) VALUES ('admin_password', 'ayperi2026')");
+        await run("INSERT INTO settings (key, value) VALUES ('telegram_bot_token', '')");
+        await run("INSERT INTO settings (key, value) VALUES ('telegram_chat_id', '')");
+        console.log("Seeded default settings configuration.");
+      }
+
       const projectCount = await get("SELECT COUNT(*) as count FROM projects");
       if (projectCount.count === 0) {
         await seedDefaultData();
       }
     } catch (err) {
-      console.error("Error seeding tables:", err.message);
+      console.error("Error seeding tables/settings:", err.message);
     }
   });
 }

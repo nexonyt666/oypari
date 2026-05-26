@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit3, Settings, Users, Image as ImageIcon, Video, FolderGit2, FileText, X, Lock, LogOut, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit3, Settings, Users, Image as ImageIcon, Video, FolderGit2, FileText, X, Lock, LogOut, AlertCircle, Mail } from 'lucide-react';
 import './Admin.css';
 
 const resumeCategories = [
@@ -19,6 +19,8 @@ const resumeCategories = [
   "Ыраазычылык баракчасы"
 ];
 
+const projectCategories = ["Билим берүү", "Коомдук", "Маданият", "IT"];
+
 const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('ayperi_admin_authenticated') === 'true');
   const [password, setPassword] = useState('');
@@ -30,7 +32,22 @@ const Admin = () => {
   const [gallery, setGallery] = useState([]);
   const [videos, setVideos] = useState([]);
   const [resume, setResume] = useState([]);
+  const [messages, setMessages] = useState([]);
   
+  // Settings States
+  const [telegramToken, setTelegramToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+
+  // Telegram Test States
+  const [testLoading, setTestLoading] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+  const [testError, setTestError] = useState('');
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -44,8 +61,105 @@ const Admin = () => {
     status: 'Активдүү', 
     url: '', 
     category: '0', 
-    description: '' 
+    description: '',
+    tags: ''
   });
+
+  const fetchSettings = async () => {
+    try {
+      const passwordHeader = sessionStorage.getItem('ayperi_admin_password') || '';
+      const res = await fetch('/api/settings', {
+        headers: { 'x-admin-password': passwordHeader }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTelegramToken(data.telegram_bot_token || '');
+        setTelegramChatId(data.telegram_chat_id || '');
+      }
+    } catch (err) {
+      console.error("Error loading settings:", err);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    if (newPassword && newPassword !== confirmPassword) {
+      setSettingsError("Жаңы сырсөздөр бири-бирине дал келбейт!");
+      return;
+    }
+    setSettingsLoading(true);
+    setSettingsMsg('');
+    setSettingsError('');
+    const passwordHeader = sessionStorage.getItem('ayperi_admin_password') || '';
+    try {
+      const body = {
+        telegram_bot_token: telegramToken,
+        telegram_chat_id: telegramChatId
+      };
+      if (newPassword) {
+        body.new_password = newPassword;
+      }
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': passwordHeader
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSettingsMsg("Жөндөөлөр ийгиликтүү сакталды!");
+        if (newPassword) {
+          sessionStorage.setItem('ayperi_admin_password', newPassword);
+          setNewPassword('');
+          setConfirmPassword('');
+        }
+      } else {
+        setSettingsError(data.error || "Сактоодо ката кетти.");
+      }
+    } catch (err) {
+      setSettingsError("Сервер менен байланыш үзүлдү.");
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setTestLoading(true);
+    setTestMsg('');
+    setTestError('');
+    const passwordHeader = sessionStorage.getItem('ayperi_admin_password') || '';
+    try {
+      // First save settings to make sure we test the active typed tokens
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': passwordHeader
+        },
+        body: JSON.stringify({
+          telegram_bot_token: telegramToken,
+          telegram_chat_id: telegramChatId
+        })
+      });
+
+      const res = await fetch('/api/test-telegram', {
+        method: 'POST',
+        headers: { 'x-admin-password': passwordHeader }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestMsg("Тест билдирүү жөнөтүлдү! Telegram'ды текшериңиз.");
+      } else {
+        setTestError(data.error || "Ката кетти.");
+      }
+    } catch (err) {
+      setTestError("Сервер менен байланышуу мүмкүн эмес.");
+    } finally {
+      setTestLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -64,6 +178,19 @@ const Admin = () => {
       const resResume = await fetch('/api/resume');
       const dataResume = await resResume.json();
       setResume(dataResume);
+
+      // Fetch messages with authorization header
+      const passwordHeader = sessionStorage.getItem('ayperi_admin_password') || '';
+      const resMessages = await fetch('/api/messages', {
+        headers: { 'x-admin-password': passwordHeader }
+      });
+      if (resMessages.ok) {
+        const dataMessages = await resMessages.json();
+        setMessages(dataMessages);
+      }
+
+      // Fetch dynamic settings
+      await fetchSettings();
     } catch (err) {
       console.error("Error loading admin data:", err);
     }
@@ -132,7 +259,7 @@ const Admin = () => {
     { id: 'projects', label: 'Долбоорлор', icon: <FolderGit2 size={18} /> },
     { id: 'gallery', label: 'Галерея', icon: <ImageIcon size={18} /> },
     { id: 'videos', label: 'Видеолор', icon: <Video size={18} /> },
-    { id: 'users', label: 'Колдонуучулар', icon: <Users size={18} /> },
+    { id: 'messages', label: 'Кабарлар (Inbox)', icon: <Mail size={18} /> },
     { id: 'settings', label: 'Жөндөөлөр', icon: <Settings size={18} /> },
   ];
 
@@ -146,8 +273,9 @@ const Admin = () => {
         title: '', 
         status: 'Активдүү', 
         url: '', 
-        category: '0', 
-        description: '' 
+        category: activeTab === 'projects' ? 'Билим берүү' : '0', 
+        description: '',
+        tags: ''
       });
     }
     setIsModalOpen(true);
@@ -311,6 +439,26 @@ const Admin = () => {
     ));
   };
 
+  const handleDeleteMessage = async (id) => {
+    if (window.confirm("Бул кабарды чын эле өчүрөсүзбү?")) {
+      const password = sessionStorage.getItem('ayperi_admin_password') || '';
+      try {
+        const res = await fetch(`/api/messages/${id}`, {
+          method: 'DELETE',
+          headers: { 'x-admin-password': password }
+        });
+        if (res.ok) {
+          setMessages(messages.filter(m => m.id !== id));
+        } else {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Кабарды өчүрүүдө ката кетти.');
+        }
+      } catch (err) {
+        alert("Ката: " + err.message);
+      }
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="admin-login-container container">
@@ -407,20 +555,143 @@ const Admin = () => {
           </div>
 
           <div className="content-body" style={{ overflowX: 'auto' }}>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Аталышы</th>
-                  <th>Статус</th>
-                  <th>Дата</th>
-                  <th>Аракеттер</th>
-                </tr>
-              </thead>
-              <tbody>
-                {renderTableData()}
-              </tbody>
-            </table>
+            {activeTab === 'messages' ? (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Аты-жөнү</th>
+                    <th>Email</th>
+                    <th>Кабар</th>
+                    <th>Аракеттер</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {messages.length === 0 ? (
+                    <tr><td colSpan="5" className="text-center" style={{padding: '2rem', color: 'var(--text-secondary)'}}>Кабарлар жок</td></tr>
+                  ) : (
+                    messages.map(item => (
+                      <tr key={item.id}>
+                        <td style={{ whiteSpace: 'nowrap', verticalAlign: 'top', paddingTop: '1rem' }}>{item.date}</td>
+                        <td style={{ fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>{item.name}</td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                          <a href={`mailto:${item.email}`} style={{ color: 'var(--primary)', textDecoration: 'underline' }}>{item.email}</a>
+                        </td>
+                        <td style={{ minWidth: '250px', maxWidth: '400px', whiteSpace: 'pre-wrap', lineHeight: 1.5, verticalAlign: 'top', paddingTop: '1rem' }}>{item.message}</td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
+                          <button className="action-btn delete" onClick={() => handleDeleteMessage(item.id)}><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            ) : activeTab === 'settings' ? (
+              <div className="settings-panel" style={{ padding: '0.5rem 0' }}>
+                <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  
+                  {/* Telegram Notifications */}
+                  <div className="settings-section" style={{ padding: '1.75rem', borderRadius: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--bg-glass-border)' }}>
+                    <h3 style={{ margin: '0 0 1rem 0', color: '#6366F1', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.25rem' }}>
+                      <Users size={20} /> Telegram Бот билдирүүлөрү
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                      Сайтта байланыш формасы толтурулганда маалыматты дароо өзүңүздүн Telegram аккаунтуңузга алуу үчүн ботту орнотуңуз.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Telegram Bot Token</label>
+                        <input 
+                          type="text" 
+                          value={telegramToken} 
+                          onChange={e => setTelegramToken(e.target.value)} 
+                          placeholder="мисалы: 123456789:ABCdefGhIJKlmNoPQRsT..."
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--bg-glass-border)', color: 'var(--text-main)', outline: 'none' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Telegram Chat ID</label>
+                        <input 
+                          type="text" 
+                          value={telegramChatId} 
+                          onChange={e => setTelegramChatId(e.target.value)} 
+                          placeholder="мисалы: 987654321"
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--bg-glass-border)', color: 'var(--text-main)', outline: 'none' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <button 
+                          type="button" 
+                          onClick={handleTestTelegram} 
+                          className="btn btn-glass btn-sm"
+                          disabled={testLoading}
+                          style={{ cursor: testLoading ? 'not-allowed' : 'pointer' }}
+                        >
+                          {testLoading ? 'Жөнөтүлүүдө...' : 'Ботту текшерүү (Тест билдирүү)'}
+                        </button>
+                        {testMsg && <span style={{ color: '#10B981', fontSize: '0.85rem', fontWeight: 600 }}>✓ {testMsg}</span>}
+                        {testError && <span style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: 600 }}>⚠ {testError}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Change Admin Password */}
+                  <div className="settings-section" style={{ padding: '1.75rem', borderRadius: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--bg-glass-border)' }}>
+                    <h3 style={{ margin: '0 0 1rem 0', color: '#EC4899', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.25rem' }}>
+                      <Lock size={20} /> Администратор Сырсөзүн Өзгөртүү
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Жаңы сырсөз</label>
+                        <input 
+                          type="password" 
+                          value={newPassword} 
+                          onChange={e => setNewPassword(e.target.value)} 
+                          placeholder="Жаңы коопсуз сырсөз жазыңыз..."
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--bg-glass-border)', color: 'var(--text-main)', outline: 'none' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Жаңы сырсөздү кайталаңыз</label>
+                        <input 
+                          type="password" 
+                          value={confirmPassword} 
+                          onChange={e => setConfirmPassword(e.target.value)} 
+                          placeholder="Жаңы сырсөздү кайра жазыңыз..."
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--bg-glass-border)', color: 'var(--text-main)', outline: 'none' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Messages */}
+                  {settingsMsg && <div style={{ color: '#10B981', fontWeight: 600, fontSize: '0.95rem' }}>✓ {settingsMsg}</div>}
+                  {settingsError && <div style={{ color: '#EF4444', fontWeight: 600, fontSize: '0.95rem' }}>⚠ {settingsError}</div>}
+
+                  {/* Actions */}
+                  <div>
+                    <button type="submit" className="btn btn-primary" disabled={settingsLoading} style={{ padding: '0.8rem 2rem', borderRadius: '10px' }}>
+                      {settingsLoading ? 'Сакталууда...' : 'Өзгөртүүлөрдү Сактоо'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Аталышы</th>
+                    <th>Статус</th>
+                    <th>Дата</th>
+                    <th>Аракеттер</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {renderTableData()}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
@@ -450,6 +721,29 @@ const Admin = () => {
                       ))}
                     </select>
                   </div>
+                )}
+
+                {activeTab === 'projects' && (
+                  <>
+                    <div className="form-group">
+                      <label>Категория (Долбоор бөлүмү)</label>
+                      <select name="category" value={formData.category || 'Билим берүү'} onChange={handleChange} required>
+                        {projectCategories.map((cat, idx) => (
+                          <option key={idx} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Тегдер (Үтүр менен бөлүп жазыңыз)</label>
+                      <input 
+                        type="text" 
+                        name="tags" 
+                        value={formData.tags || ''} 
+                        onChange={handleChange} 
+                        placeholder="мисалы: Enactus, Лидерлик, IT..."
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className="form-group">
