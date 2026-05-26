@@ -72,6 +72,17 @@ app.post('/api/auth-check', async (req, res) => {
     }
 });
 
+// Temporary password reset endpoint (Delete after use)
+app.get('/api/reset-password-temp', async (req, res) => {
+    try {
+        await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', 'ayperi2026')");
+        res.send("Password successfully reset to: ayperi2026. Please log in and let me know so I can remove this endpoint.");
+    } catch (err) {
+        res.status(500).send("Error resetting password: " + err.message);
+    }
+});
+
+
 // --- STATS ENDPOINT ---
 app.get('/api/stats', (req, res) => {
     res.json({
