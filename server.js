@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const db = require('./database');
+const telegramBot = require('./telegramBot');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,16 +70,6 @@ app.post('/api/auth-check', async (req, res) => {
         }
     } catch (err) {
         res.status(500).json({ error: 'Database check error.' });
-    }
-});
-
-// Temporary password reset endpoint (Delete after use)
-app.get('/api/reset-password-temp', async (req, res) => {
-    try {
-        await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', 'ayperi2026')");
-        res.send("Password successfully reset to: ayperi2026. Please log in and let me know so I can remove this endpoint.");
-    } catch (err) {
-        res.status(500).send("Error resetting password: " + err.message);
     }
 });
 
@@ -450,6 +441,12 @@ app.put('/api/settings', requireAdmin, async (req, res) => {
         if (new_password) {
             await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", [new_password]);
         }
+
+        // Restart Telegram Bot if credentials changed
+        if (telegram_bot_token !== undefined || telegram_chat_id !== undefined) {
+            telegramBot.notifySettingsChanged();
+        }
+
         res.json({ success: true, message: 'Жөндөөлөр ийгиликтүү сакталды.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -496,6 +493,9 @@ app.post('/api/test-telegram', requireAdmin, async (req, res) => {
 // Serve PDF files
 app.use('/pdf', express.static(path.join(__dirname)));
 
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Serve static assets (CSS, JS, images, fonts) from React build directory
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
@@ -506,4 +506,6 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+    // Start Telegram Bot Admin Client
+    telegramBot.startTelegramBot();
 });
